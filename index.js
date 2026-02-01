@@ -1,19 +1,20 @@
 const express = require("express");
 const cors = require("cors");
-const sqlite3 = require("sqlite3").verbose();
+const Database = require("better-sqlite3");
 const path = require("path");
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
 
-// Banco SQLite
+// Banco SQLite (compatível com Render)
 const dbPath = path.resolve(__dirname, "database.db");
-const db = new sqlite3.Database(dbPath);
+const db = new Database(dbPath);
 
-db.run(`
+// Criar tabela
+db.prepare(`
   CREATE TABLE IF NOT EXISTS ordens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     of TEXT,
@@ -22,49 +23,40 @@ db.run(`
     status TEXT,
     data TEXT
   )
-`);
+`).run();
 
 // Rota teste
 app.get("/", (req, res) => {
-  res.send("Backend funcionando 🚀");
+  res.send("Backend funcionando no Render 🚀");
 });
 
 // GET ordens
 app.get("/ordens", (req, res) => {
-  db.all("SELECT * FROM ordens ORDER BY id DESC", [], (err, rows) => {
-    if (err) {
-      res.status(500).json(err);
-      return;
-    }
-    res.json(rows);
-  });
+  const rows = db
+    .prepare("SELECT * FROM ordens ORDER BY id DESC")
+    .all();
+  res.json(rows);
 });
 
-// POST ordens (ESTA É A CHAVE!)
+// POST ordens
 app.post("/ordens", (req, res) => {
   const { of, produto, quantidade, status, data } = req.body;
 
-  db.run(
-    "INSERT INTO ordens (of, produto, quantidade, status, data) VALUES (?, ?, ?, ?, ?)",
-    [of, produto, quantidade, status, data],
-    function (err) {
-      if (err) {
-        res.status(500).json(err);
-        return;
-      }
+  const result = db.prepare(`
+    INSERT INTO ordens (of, produto, quantidade, status, data)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(of, produto, quantidade, status, data);
 
-      res.json({
-        id: this.lastID,
-        of,
-        produto,
-        quantidade,
-        status,
-        data,
-      });
-    }
-  );
+  res.json({
+    id: result.lastInsertRowid,
+    of,
+    produto,
+    quantidade,
+    status,
+    data,
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
