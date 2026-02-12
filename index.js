@@ -60,6 +60,29 @@ db.prepare(`
   )
 `).run();
 
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS status (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nome TEXT UNIQUE
+  )
+`).run();
+const statusPadrao = [
+  "Falta Corte",
+  "Falta Dobra",
+  "Falta Solda",
+  "Falta Liberação Qualidade",
+  "Finalizada"
+];
+
+statusPadrao.forEach((nome) => {
+  db.prepare(`
+    INSERT OR IGNORE INTO status (nome)
+    VALUES (?)
+  `).run(nome);
+});
+
+
+
 // 🧪 Rota teste
 app.get("/", (req, res) => {
   res.send("Backend funcionando 🚀");
